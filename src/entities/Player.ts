@@ -22,7 +22,7 @@ export default class Player extends Entity {
     private _lastShotTime: number;
     private readonly _moveDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
     private readonly _shootDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
-    private _targets: Phaser.Physics.Arcade.Group;
+    private _targets: Phaser.Physics.Arcade.Group[] = [];
 
     constructor(scene: Scene, x: number, y: number) {
         super(scene, x, y, 'sprites');
@@ -109,11 +109,13 @@ export default class Player extends Entity {
         }
     }
 
-    public setTargets(targets: Phaser.Physics.Arcade.Group) {
+    // One group per enemy type: the player aims at the nearest enemy among all of them
+    public setTargets(...targets: Phaser.Physics.Arcade.Group[]) {
         this._targets = targets;
     }
 
     private findNearestTarget(): Entity | null {
-        return this.scene.physics.closest(this, this._targets.getMatching('active', true)) as Entity | null;
+        const activeTargets = this._targets.flatMap(group => group.getMatching('active', true));
+        return this.scene.physics.closest(this, activeTargets) as Entity | null;
     }
 }
