@@ -10,7 +10,7 @@ export default class SpreadWeapon extends Weapon {
     private readonly _spreadAngle: number;
     private readonly _bulletDirection: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
 
-    constructor(bullets: Physics.Arcade.Group, bulletData: BulletData, spreadShotData: SpreadShotData) {
+    constructor(bullets: Physics.Arcade.Group, bulletData: BulletData, spreadShotData: Pick<SpreadShotData, 'count' | 'angle'>) {
         super(bullets, bulletData);
 
         this._count = Math.max(1, spreadShotData.count);
