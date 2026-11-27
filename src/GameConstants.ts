@@ -13,6 +13,7 @@ export default class GameConstants {
 
     public static readonly DataKeys = Object.freeze({
         ENEMIES: "enemies",
+        POWER_UPS: "powerUps",
     } as const);
 
     public static readonly MAX_SCORE_DIGITS: number = 6;

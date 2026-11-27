@@ -1,0 +1,33 @@
+{
+  "dropChance": 0.15,
+  "bossDropCount": 3,
+  "fallSpeed": 0.2,
+  "multiShot": {
+    "frame": "star1",
+    "tint": "#ffe066",
+    "label": "TIR MULTIPLE",
+    "duration": 8000,
+    "count": 3,
+    "angle": 30
+  },
+  "shield": {
+    "frame": "star2",
+    "tint": "#5cc8f2",
+    "label": "BOUCLIER",
+    "duration": 6000
+  },
+  "speed": {
+    "frame": "star3",
+    "tint": "#7cf25c",
+    "label": "VITESSE",
+    "duration": 6000,
+    "multiplier": 1.6
+  },
+  "rapidFire": {
+    "frame": "star3",
+    "tint": "#ff8c42",
+    "label": "TIR RAPIDE",
+    "duration": 6000,
+    "multiplier": 2.5
+  }
+}
