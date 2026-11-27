@@ -3,6 +3,10 @@ import Health from "../components/Health.ts";
 import Bullet from "../entities/Bullet.ts";
 import Enemy from "../entities/Enemy.ts";
 import Player from "../entities/Player.ts";
+import SpreadEnemy from "../entities/SpreadEnemy.ts";
+import SineEnemy from "../entities/SineEnemy.ts";
+import BossEnemy from "../entities/BossEnemy.ts";
+import type {EnemiesData, SpreadEnemyData} from "../gameData/EnemiesData.ts";
 import GroupUtils from "../utils/GroupUtils.ts";
 import GameConstants from "../GameConstants.ts";
 import RegistryConstants from "../RegistryConstants.ts";
@@ -25,6 +29,13 @@ export default class EntityManager extends Plugins.ScenePlugin {
     private _playerBullets: Physics.Arcade.Group;
     private _enemies: Physics.Arcade.Group;
     private _enemyBullets: Physics.Arcade.Group;
+    private _sineEnemies: Physics.Arcade.Group;
+    private _bosses: Physics.Arcade.Group;
+    // No other enemy spawns while a boss is alive
+    private _isBossFight: boolean = false;
+
+    // Keep sine enemies away from the screen sides, on top of their wave amplitude
+    private static readonly SINE_ENEMY_SPAWN_MARGIN: number = 64;
 
     constructor(scene: Scene, pluginManager: Plugins.PluginManager) {
         super(scene, pluginManager, EntityManager.PLUGIN_KEY);
@@ -73,6 +84,8 @@ export default class EntityManager extends Plugins.ScenePlugin {
             loop: true
         });
 
+        this.initSpreadEnemies();
+
         console.log("[EntityManager] Enemies initialized");
 
         return this._enemies;
@@ -105,11 +118,111 @@ export default class EntityManager extends Plugins.ScenePlugin {
             this.scene?.cameras.main.shake(100, 0.03);
         });
 
+        this.initSpreadEnemyCollisions(this._sineEnemies);
+        this.initSpreadEnemyCollisions(this._bosses);
+
         console.log("[EntityManager] Group collisions initialized");
     }
 
+    private initSpreadEnemies() {
+        // The plugin outlives a scene restart: a restart during a boss fight must not keep blocking spawns
+        this._isBossFight = false;
+
+        const enemiesData = this.scene!.cache.json.get(GameConstants.DataKeys.ENEMIES) as EnemiesData;
+        const camera = this.scene!.cameras.main;
+
+        this._sineEnemies = this.createSpreadEnemyGroup(SineEnemy, enemiesData.sineEnemy);
+        this.scene!.time.addEvent({
+            delay: enemiesData.sineEnemy.spawn.delay,
+            callback: () => {
+                // The whole wave must stay inside the screen
+                const sideMargin = enemiesData.sineEnemy.movement.amplitude + EntityManager.SINE_ENEMY_SPAWN_MARGIN;
+                const x = Phaser.Math.Between(sideMargin, camera.width - sideMargin);
+                if (!this._isBossFight)
+                    this.spawnSpreadEnemy(this._sineEnemies, enemiesData.sineEnemy, x);
+            },
+            loop: true
+        });
+
+        this._bosses = this.createSpreadEnemyGroup(BossEnemy, enemiesData.boss);
+        this.scene!.time.addEvent({
+            delay: enemiesData.boss.spawn.delay,
+            callback: () => this.spawnBoss(enemiesData.boss, camera.centerX),
+            loop: true
+        });
+    }
+
+    // One pool per enemy type: a pooled enemy is always reused with the same data
+    private createSpreadEnemyGroup(classType: typeof SineEnemy | typeof BossEnemy, data: SpreadEnemyData): Physics.Arcade.Group {
+        return this.scene!.physics.add.group({
+            classType: classType,
+            defaultKey: 'sprites',
+            defaultFrame: data.texture,
+            createCallback: (enemy) => {
+                (enemy as SpreadEnemy).init(data, this._enemyBullets);
+            }
+        });
+    }
+
+    // Spawns just above the top of the screen
+    private spawnSpreadEnemy(group: Physics.Arcade.Group, data: SpreadEnemyData, x: number): SpreadEnemy | null {
+        if (group.countActive(true) >= data.spawn.maxActive)
+            return null;
+
+        const enemy = group.get() as SpreadEnemy | null;
+        if (!enemy)
+            return null;
+
+        enemy.enable(x, -enemy.displayHeight);
+
+        this.game!.events.emit(GameConstants.Events.ENEMY_SPAWNED_EVENT, enemy);
+
+        return enemy;
+    }
+
+    private spawnBoss(data: SpreadEnemyData, x: number) {
+        if (this._isBossFight)
+            return;
+
+        const boss = this.spawnSpreadEnemy(this._bosses, data, x);
+        if (!boss)
+            return;
+
+        this._isBossFight = true;
+
+        // once: the boss is pooled, the next spawn will listen again
+        boss.getComponent(Health)?.once(Health.DEATH_EVENT, () => {
+            this._isBossFight = false;
+        });
+    }
+
+    private initSpreadEnemyCollisions(group: Physics.Arcade.Group) {
+        this.scene!.physics.add.overlap(this._playerBullets, group, (bullet, enemy) => {
+            this.scene!.registry.inc(RegistryConstants.Keys.PLAYER_SCORE);
+
+            (bullet as Bullet).disable();
+            (enemy as SpreadEnemy).getComponent(Health)?.damage((bullet as Bullet).damage);
+        });
+
+        this.scene!.physics.add.overlap(this._player, group, (player, enemy) => {
+            const spreadEnemy = enemy as SpreadEnemy;
+
+            // A boss survives the contact, touching it only hurts the player
+            if (spreadEnemy.destroyedOnContact) {
+                this.scene!.registry.inc(RegistryConstants.Keys.PLAYER_SCORE);
+
+                const enemyHealth = spreadEnemy.getComponent(Health);
+                enemyHealth?.damage(enemyHealth?.max);
+            }
+
+            (player as Player).getComponent(Health)?.damage(1);
+
+            this.scene?.cameras.main.shake(100, 0.03);
+        });
+    }
+
     private spawnEnemy() {
-        if (this._enemies.countActive(true) >= 5) {
+        if (this._isBossFight || this._enemies.countActive(true) >= 5) {
             return;
         }
 
