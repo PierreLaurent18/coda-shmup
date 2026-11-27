@@ -1,0 +1,38 @@
+{
+  "laser": {
+    "chargeTime": 1500,
+    "minCharge": 0.25,
+    "maxDamage": 10,
+    "length": 1600,
+    "minWidth": 8,
+    "maxWidth": 56,
+    "color": "#66e0ff",
+    "duration": 300
+  },
+  "powerUps": {
+    "dropChance": 0.12,
+    "bossDropCount": 3,
+    "lifetime": 10000,
+    "multiShot": {
+      "frame": "star1",
+      "tint": "#ffe066",
+      "label": "TIR MULTIPLE",
+      "duration": 8000,
+      "count": 3,
+      "angle": 30
+    },
+    "shield": {
+      "frame": "star2",
+      "tint": "#5cc8f2",
+      "label": "BOUCLIER",
+      "duration": 6000
+    },
+    "speed": {
+      "frame": "star3",
+      "tint": "#7cf25c",
+      "label": "VITESSE",
+      "duration": 6000,
+      "multiplier": 1.6
+    }
+  }
+}

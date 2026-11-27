@@ -2,6 +2,8 @@ export default class GameConstants {
     public static readonly Events = Object.freeze({
         PLAYER_SPAWNED_EVENT: "playerSpawned",
         ENEMY_SPAWNED_EVENT: "enemySpawned",
+        BOSS_FIGHT_STARTED_EVENT: "bossFightStarted",
+        BOSS_FIGHT_ENDED_EVENT: "bossFightEnded",
     } as const);
 
     public static readonly SceneKeys = Object.freeze({
@@ -13,6 +15,7 @@ export default class GameConstants {
 
     public static readonly DataKeys = Object.freeze({
         ENEMIES: "enemies",
+        ABILITIES: "abilities",
     } as const);
 
     public static readonly MAX_SCORE_DIGITS: number = 6;
