@@ -5,11 +5,9 @@ import SaveManager from "../managers/SaveManager.ts";
 import SaveConstants from "../SaveConstants.ts";
 import EntityManager from "../managers/EntityManager.ts";
 import GameConstants from "../GameConstants.ts";
-import Player from "../entities/Player.ts";
 
 export default class MainGameScene extends Scene {
     private static readonly CHEAT_INVINCIBILITY_KEY: number = Phaser.Input.Keyboard.KeyCodes.I;
-    private static readonly INVINCIBLE_ALPHA: number = 0.5;
 
     private bg: GameObjects.TileSprite;
     private planet: GameObjects.Image;
@@ -51,7 +49,7 @@ export default class MainGameScene extends Scene {
             // Test cheat, only in dev (npm run dev): removed from the production build
             if (import.meta.env.DEV) {
                 this.input.keyboard.addKey(MainGameScene.CHEAT_INVINCIBILITY_KEY)
-                    .on('down', () => this.toggleInvincibility(player));
+                    .on('down', () => player.toggleCheatInvincibility());
             }
         } else {
             console.error('No keyboard input');
@@ -60,16 +58,6 @@ export default class MainGameScene extends Scene {
         this.registry.set(RegistryConstants.Keys.PLAYER_SCORE, 0);
 
         console.log("MainGameScene created");
-    }
-
-    private toggleInvincibility(player: Player) {
-        const health = player.getComponent(Health);
-        if (!health)
-            return;
-
-        // A disabled Health ignores damage
-        health.enabled = !health.enabled;
-        player.setAlpha(health.enabled ? 1 : MainGameScene.INVINCIBLE_ALPHA);
     }
 
     private endGame() {
