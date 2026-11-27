@@ -1,0 +1,61 @@
+{
+  "sineEnemy": {
+    "texture": "ufoRed",
+    "tint": "#7cf25c",
+    "scale": 0.75,
+    "health": 1,
+    "destroyedOnContact": true,
+    "spawn": {
+      "delay": 2000,
+      "maxActive": 4
+    },
+    "movement": {
+      "speed": 0.15,
+      "amplitude": 160,
+      "frequency": 0.5
+    },
+    "spreadShot": {
+      "count": 3,
+      "angle": 30,
+      "fireDelayMin": 2000,
+      "fireDelayMax": 3000
+    },
+    "bullet": {
+      "width": 16,
+      "height": 8,
+      "color": "#7cf25c",
+      "speed": 450,
+      "damage": 1
+    }
+  },
+  "boss": {
+    "texture": "ufoRed",
+    "tint": "#b45cf2",
+    "scale": 2.5,
+    "health": 30,
+    "destroyedOnContact": false,
+    "spawn": {
+      "delay": 30000,
+      "maxActive": 1
+    },
+    "movement": {
+      "speed": 0.2,
+      "amplitude": 380,
+      "frequency": 0.15,
+      "lineY": 300
+    },
+    "spreadShot": {
+      "count": 5,
+      "angle": 50,
+      "fireDelayMin": 1200,
+      "fireDelayMax": 1600
+    },
+    "bullet": {
+      "width": 20,
+      "height": 20,
+      "color": "#b45cf2",
+      "speed": 400,
+      "damage": 1
+    }
+  }
+}
