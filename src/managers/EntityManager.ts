@@ -6,7 +6,10 @@ import Player from "../entities/Player.ts";
 import SpreadEnemy from "../entities/SpreadEnemy.ts";
 import SineEnemy from "../entities/SineEnemy.ts";
 import BossEnemy from "../entities/BossEnemy.ts";
+import Entity from "../entities/Entity.ts";
+import PowerUp from "../entities/PowerUp.ts";
 import type {EnemiesData, SpreadEnemyData} from "../gameData/EnemiesData.ts";
+import type {PowerUpsData, PowerUpType} from "../gameData/PowerUpsData.ts";
 import GroupUtils from "../utils/GroupUtils.ts";
 import GameConstants from "../GameConstants.ts";
 import RegistryConstants from "../RegistryConstants.ts";
@@ -31,11 +34,19 @@ export default class EntityManager extends Plugins.ScenePlugin {
     private _enemyBullets: Physics.Arcade.Group;
     private _sineEnemies: Physics.Arcade.Group;
     private _bosses: Physics.Arcade.Group;
+    private _powerUps: Physics.Arcade.Group;
+    private _powerUpsData: PowerUpsData;
     // No other enemy spawns while a boss is alive
     private _isBossFight: boolean = false;
 
     // Keep sine enemies away from the screen sides, on top of their wave amplitude
     private static readonly SINE_ENEMY_SPAWN_MARGIN: number = 64;
+    // Boss drops are spread around it so they don't stack
+    private static readonly BOSS_DROP_SPREAD: number = 96;
+    private static readonly POWER_UP_TYPES: PowerUpType[] = ['multiShot', 'shield', 'speed', 'rapidFire'];
+    private static readonly PICKUP_TEXT_SIZE: number = 48;
+    private static readonly PICKUP_TEXT_RISE: number = 96;
+    private static readonly PICKUP_TEXT_DURATION: number = 800;
 
     constructor(scene: Scene, pluginManager: Plugins.PluginManager) {
         super(scene, pluginManager, EntityManager.PLUGIN_KEY);
@@ -73,6 +84,7 @@ export default class EntityManager extends Plugins.ScenePlugin {
             defaultFrame: 'ufoRed',
             createCallback: (enemy) => {
                 (enemy as Enemy).init(this._enemyBullets);
+                this.listenForPowerUpDrop(enemy as Enemy, false);
             }
         });
 
@@ -85,6 +97,7 @@ export default class EntityManager extends Plugins.ScenePlugin {
         });
 
         this.initSpreadEnemies();
+        this.initPowerUps();
 
         console.log("[EntityManager] Enemies initialized");
 
@@ -121,6 +134,10 @@ export default class EntityManager extends Plugins.ScenePlugin {
         this.initSpreadEnemyCollisions(this._sineEnemies);
         this.initSpreadEnemyCollisions(this._bosses);
 
+        this.scene!.physics.add.overlap(this._player, this._powerUps, (_player, powerUp) => {
+            this.pickUpPowerUp(powerUp as PowerUp);
+        });
+
         console.log("[EntityManager] Group collisions initialized");
     }
 
@@ -144,7 +161,7 @@ export default class EntityManager extends Plugins.ScenePlugin {
             loop: true
         });
 
-        this._bosses = this.createSpreadEnemyGroup(BossEnemy, enemiesData.boss);
+        this._bosses = this.createSpreadEnemyGroup(BossEnemy, enemiesData.boss, true);
         this.scene!.time.addEvent({
             delay: enemiesData.boss.spawn.delay,
             callback: () => this.spawnBoss(enemiesData.boss, camera.centerX),
@@ -152,15 +169,68 @@ export default class EntityManager extends Plugins.ScenePlugin {
         });
     }
 
+    private initPowerUps() {
+        this._powerUpsData = this.scene!.cache.json.get(GameConstants.DataKeys.POWER_UPS) as PowerUpsData;
+
+        this._powerUps = this.scene!.physics.add.group({
+            classType: PowerUp,
+            defaultKey: 'sprites',
+            defaultFrame: this._powerUpsData.multiShot.frame
+        });
+    }
+
     // One pool per enemy type: a pooled enemy is always reused with the same data
-    private createSpreadEnemyGroup(classType: typeof SineEnemy | typeof BossEnemy, data: SpreadEnemyData): Physics.Arcade.Group {
+    private createSpreadEnemyGroup(classType: typeof SineEnemy | typeof BossEnemy, data: SpreadEnemyData,
+                                   isBoss: boolean = false): Physics.Arcade.Group {
         return this.scene!.physics.add.group({
             classType: classType,
             defaultKey: 'sprites',
             defaultFrame: data.texture,
             createCallback: (enemy) => {
                 (enemy as SpreadEnemy).init(data, this._enemyBullets);
+                this.listenForPowerUpDrop(enemy as SpreadEnemy, isBoss);
             }
+        });
+    }
+
+    // Listen once per pooled enemy, not on every spawn
+    private listenForPowerUpDrop(enemy: Entity, isBoss: boolean) {
+        enemy.getComponent(Health)?.on(Health.DEATH_EVENT, () => {
+            if (isBoss) {
+                for (let i: number = 0; i < this._powerUpsData.bossDropCount; i++) {
+                    const offsetX = Phaser.Math.Between(-EntityManager.BOSS_DROP_SPREAD, EntityManager.BOSS_DROP_SPREAD);
+                    this.spawnPowerUp(enemy.x + offsetX, enemy.y);
+                }
+            } else if (Math.random() < this._powerUpsData.dropChance) {
+                this.spawnPowerUp(enemy.x, enemy.y);
+            }
+        });
+    }
+
+    private spawnPowerUp(x: number, y: number) {
+        const powerUp = this._powerUps.get() as PowerUp | null;
+        if (!powerUp)
+            return;
+
+        const type: PowerUpType = Phaser.Utils.Array.GetRandom(EntityManager.POWER_UP_TYPES);
+        powerUp.enable(x, y, type, this._powerUpsData[type], this._powerUpsData.fallSpeed);
+    }
+
+    private pickUpPowerUp(powerUp: PowerUp) {
+        const data = this._powerUpsData[powerUp.powerUpType];
+        this._player.applyPowerUp(powerUp.powerUpType);
+        powerUp.disable();
+
+        // Feedback: the power-up name floats up and fades out
+        const text = this.scene!.add.bitmapText(powerUp.x, powerUp.y, 'future-bmp', data.label, EntityManager.PICKUP_TEXT_SIZE)
+            .setOrigin(0.5)
+            .setTint(Phaser.Display.Color.HexStringToColor(data.tint).color);
+        this.scene!.tweens.add({
+            targets: text,
+            y: text.y - EntityManager.PICKUP_TEXT_RISE,
+            alpha: 0,
+            duration: EntityManager.PICKUP_TEXT_DURATION,
+            onComplete: () => text.destroy()
         });
     }
 
