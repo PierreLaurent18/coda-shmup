@@ -5,9 +5,9 @@
     "scale": 0.75,
     "health": 1,
     "destroyedOnContact": true,
-    "spawn": {
-      "delay": 2000,
-      "maxActive": 4
+      "spawn": {
+      "delay": 4000,
+      "maxActive": 2
     },
     "movement": {
       "speed": 0.15,
