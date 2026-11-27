@@ -11,6 +11,10 @@ export default class GameConstants {
         GAME_OVER: "GameOverScene",
     } as const);
 
+    public static readonly DataKeys = Object.freeze({
+        ENEMIES: "enemies",
+    } as const);
+
     public static readonly MAX_SCORE_DIGITS: number = 6;
 
     // Small enough for the planet, at the center, to stay visible from the arena corners
