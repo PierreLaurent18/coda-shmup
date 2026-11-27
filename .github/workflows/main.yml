@@ -52,4 +52,4 @@ jobs:
           CHANNEL: html5
           ITCH_GAME: coda-shmup-survivor
           ITCH_USER: pierre-laurent
-          PACKAGE: dist/
+          PACKAGE: dist/  
