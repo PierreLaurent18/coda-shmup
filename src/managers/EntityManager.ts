@@ -31,6 +31,8 @@ export default class EntityManager extends Plugins.ScenePlugin {
     private _enemyBullets: Physics.Arcade.Group;
     private _sineEnemies: Physics.Arcade.Group;
     private _bosses: Physics.Arcade.Group;
+    // No other enemy spawns while a boss is alive
+    private _isBossFight: boolean = false;
 
     // Keep sine enemies away from the screen sides, on top of their wave amplitude
     private static readonly SINE_ENEMY_SPAWN_MARGIN: number = 64;
@@ -123,6 +125,9 @@ export default class EntityManager extends Plugins.ScenePlugin {
     }
 
     private initSpreadEnemies() {
+        // The plugin outlives a scene restart: a restart during a boss fight must not keep blocking spawns
+        this._isBossFight = false;
+
         const enemiesData = this.scene!.cache.json.get(GameConstants.DataKeys.ENEMIES) as EnemiesData;
         const camera = this.scene!.cameras.main;
 
@@ -133,7 +138,8 @@ export default class EntityManager extends Plugins.ScenePlugin {
                 // The whole wave must stay inside the screen
                 const sideMargin = enemiesData.sineEnemy.movement.amplitude + EntityManager.SINE_ENEMY_SPAWN_MARGIN;
                 const x = Phaser.Math.Between(sideMargin, camera.width - sideMargin);
-                this.spawnSpreadEnemy(this._sineEnemies, enemiesData.sineEnemy, x);
+                if (!this._isBossFight)
+                    this.spawnSpreadEnemy(this._sineEnemies, enemiesData.sineEnemy, x);
             },
             loop: true
         });
@@ -141,7 +147,7 @@ export default class EntityManager extends Plugins.ScenePlugin {
         this._bosses = this.createSpreadEnemyGroup(BossEnemy, enemiesData.boss);
         this.scene!.time.addEvent({
             delay: enemiesData.boss.spawn.delay,
-            callback: () => this.spawnSpreadEnemy(this._bosses, enemiesData.boss, camera.centerX),
+            callback: () => this.spawnBoss(enemiesData.boss, camera.centerX),
             loop: true
         });
     }
@@ -159,17 +165,35 @@ export default class EntityManager extends Plugins.ScenePlugin {
     }
 
     // Spawns just above the top of the screen
-    private spawnSpreadEnemy(group: Physics.Arcade.Group, data: SpreadEnemyData, x: number) {
+    private spawnSpreadEnemy(group: Physics.Arcade.Group, data: SpreadEnemyData, x: number): SpreadEnemy | null {
         if (group.countActive(true) >= data.spawn.maxActive)
-            return;
+            return null;
 
         const enemy = group.get() as SpreadEnemy | null;
         if (!enemy)
-            return;
+            return null;
 
         enemy.enable(x, -enemy.displayHeight);
 
         this.game!.events.emit(GameConstants.Events.ENEMY_SPAWNED_EVENT, enemy);
+
+        return enemy;
+    }
+
+    private spawnBoss(data: SpreadEnemyData, x: number) {
+        if (this._isBossFight)
+            return;
+
+        const boss = this.spawnSpreadEnemy(this._bosses, data, x);
+        if (!boss)
+            return;
+
+        this._isBossFight = true;
+
+        // once: the boss is pooled, the next spawn will listen again
+        boss.getComponent(Health)?.once(Health.DEATH_EVENT, () => {
+            this._isBossFight = false;
+        });
     }
 
     private initSpreadEnemyCollisions(group: Physics.Arcade.Group) {
@@ -198,7 +222,7 @@ export default class EntityManager extends Plugins.ScenePlugin {
     }
 
     private spawnEnemy() {
-        if (this._enemies.countActive(true) >= 5) {
+        if (this._isBossFight || this._enemies.countActive(true) >= 5) {
             return;
         }
 
